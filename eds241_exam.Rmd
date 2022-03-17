@@ -31,19 +31,16 @@ library(car)
 
 ```{r , include=TRUE}
 # Load data
-data <- read.csv(here("KM_EDS241.csv"))
+data_raw <- read.csv(here("KM_EDS241.csv"))
+
+data <- data_raw %>% 
+  mutate(year = as.factor(year), 
+         nearinc = as.factor(nearinc))
 ```
 
-7 variables:
-  -`rprice`: sales price of house
-  -`nearinc`: =1 if near incinerator
-  -`age`: age of house
-  -`land`: square footage of the lot
-  -`area`: square footage of the house
-  -`rooms`: number of rooms
-  -`year`: 1978 or 1981
 
-\noindent **(a) Using the data for 1981, estimate a simple OLS regression of real house values on the indicator for being located near the incinerator in 1981.**
+\noindent (a) Using the data for 1981, estimate a simple OLS regression of real house values on the indicator for being located near the incinerator in 1981. What is the house value “penalty” for houses located near the incinerator? Does this estimated coefficient correspond to the ‘causal’ effect of the incinerator (and the negative amenities that come with it) on housing values? Explain why or why not.
+
 
 ```{r}
 # subset data
@@ -51,20 +48,59 @@ data_1981 <- data %>% filter(year == 1981)
 ```
 
 ```{r}
-model <- lm(data = data_1981, formula = rprice ~ nearinc)
+model <- lm_robust(formula = rprice ~ nearinc, data = data_1981)
 summary(model)
-
-model_robust <- lm_robust(data = data_1981, formula = rprice ~ nearinc)
-summary(model_robust)
 ```
 
-
-What is the house value “penalty” for houses located near the incinerator? Does this estimated coefficient correspond to the ‘causal’effect of the incinerator (and the negative amenities that come with it) on housing values? Explain why or why not.
-
-The house value "penalty" for houses located near the incinerator is $`r summary(model)[2]`
 
 ```{r}
-
+penalty <- abs(round(model$coefficients[2]))
 ```
 
+
+
+\noindent The house value "penalty" for houses located near the incinerator is $`r penalty`. The very low p-value indicates that this is a statistically significant result and this estimated coefficient might correspond to the 'causal' effect of the incinerator. There are other variables that may contribute to the difference in housing prices as well, which implies the possibility of omitted variables bias.
+ 
+
+
+
+
+\noindent (b) Using the data for 1978, provide some evidence the location choice of the incinerator was not “random”, but rather selected on the basis of house values and characteristics. [Hint: in the 1978 sample, are house values and characteristics balanced by nearinc status?]
+
+
+```{r}
+# subset data
+data_1978 <- data %>% filter(year == 1978)
+```
+
+
+```{r}
+# unadjusted mean difference 
+data_nearinc <- data_1978 %>% filter(nearinc == 1)
+nearinc_mean_price <- round(mean(data_nearinc$rprice), 2)
+
+data_not_nearinc <- data_1978 %>% filter(nearinc == 0)
+not_nearinc_mean_price <- round(mean(data_not_nearinc$rprice), 2)
+
+difference <- not_nearinc_mean_price - nearinc_mean_price
+difference
+```
+
+
+
+```{r}
+# unadjusted mean difference using linear regression
+model_age   <- lm_robust(formula = age ~ nearinc, data = data)
+age <- round(model_age$coefficients[[2]], 2)
+summary(model_age)
+
+model_rooms <- lm_robust(rooms ~ nearinc, data = data)
+rooms <- round(model_rooms$coefficients[[2]], 2)
+
+model_area  <- lm_robust(area ~ nearinc, data = data)
+area <- round(model_area$coefficients[[2]], digits = 2)
+
+model_land  <- lm_robust(land ~ nearinc, data = data)
+land <- round(model_land$coefficients[[2]], digits = 2)
+```
 
